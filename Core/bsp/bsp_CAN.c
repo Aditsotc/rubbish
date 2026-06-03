@@ -11,8 +11,9 @@
  ******************************************************************************
  */
 #include "bsp_CAN.h"
-#include "VTM_info.h"
+//#include "VTM_info.h"
 #include "bsp_dwt.h"
+#include "can.h"
 
 uint8_t tempBuff[24] = {0};
 uint8_t enable_navigation;
@@ -109,138 +110,176 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *_hcan)
 {
 	CAN_RxHeaderTypeDef rx_header;
 	uint8_t rx_data[8];
-	static uint8_t RC_Data_Buf[16];
-	static uint8_t Follow_Data_Buf[8];
-	static uint8_t MiniPC_CtrlFrame_Buf[8];
-	static uint8_t Gimbal_Buf[8];
-	static int16_t CAP_vol, CAP0727_vol;
 
 	HAL_CAN_GetRxMessage(_hcan, CAN_RX_FIFO0, &rx_header, rx_data);
 
 	if (_hcan == &hcan1)
 	{
+		// 底盘电机反馈 (ID 0x201~0x204)
 		if (rx_header.StdId >= 0x201 && rx_header.StdId <= 0x204)
 		{
-			if (Chassis.ChassisMotor[rx_header.StdId - 0x201].msg_cnt++ <= 50)
-			{
-				get_moto_offset(&Chassis.ChassisMotor[rx_header.StdId - 0x201], rx_data);
-			}
+			uint8_t motor_index = rx_header.StdId - 0x201;
+			if (Chassis.ChassisMotor[motor_index].msg_cnt++ <= 50)
+				get_moto_offset(&Chassis.ChassisMotor[motor_index], rx_data);
 			else
-			{
-				get_moto_info(&Chassis.ChassisMotor[rx_header.StdId - 0x201], rx_data);
-			}
-			switch (rx_header.StdId)
-			{
-			case 0x201:
-			{
-				Detect_Hook(CHASSIS_MOTOR1_TOE);
-				break;
-			}
-			case 0x202:
-			{
-				Detect_Hook(CHASSIS_MOTOR2_TOE);
-				break;
-			}
-			case 0x203:
-			{
-				Detect_Hook(CHASSIS_MOTOR3_TOE);
-				break;
-			}
-			case 0x204:
-			{
-				Detect_Hook(CHASSIS_MOTOR4_TOE);
-				break;
-			}
-			}
-		}
-		switch (rx_header.StdId)
-		{
-		case CAN_CAP_INFO_ID:
-			CAP_vol = rx_data[0];
-			Cap.Voltage = (float)CAP_vol / 5.0f;
-			Cap.Power = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
-			Cap.PowerIn = (float)((rx_data[3] << 8 | rx_data[4]) / 10.0f);
-			Cap.Cap_Normol_Chassis_Flag = rx_data[5];
-			Detect_Hook(CAP_TOE);
-			break;
-		case CAN_CAP0727_INFO_ID:
-			CAP0727_vol = rx_data[0];
-			Cap0727.Voltage = (float)CAP0727_vol / 5.0f;
-			Cap0727.Power = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
-			dt_cap0727 = DWT_GetDeltaT(&Bsp_Can_Count);
-			Detect_Hook(CAP0727_TOE);
-			break;
-		}
-	}
-	if (_hcan == &hcan2)
-	{
-		switch (rx_header.StdId)
-		{
-		case CAN_RC_DATA_Frame_0:
-			RC_Data_Buf[0] = rx_data[0];
-			RC_Data_Buf[1] = rx_data[1];
-			RC_Data_Buf[2] = rx_data[2];
-			RC_Data_Buf[3] = rx_data[3];
-			RC_Data_Buf[4] = rx_data[4];
-			RC_Data_Buf[5] = rx_data[5];
-			RC_Data_Buf[6] = rx_data[6];
-			RC_Data_Buf[7] = rx_data[7];
-			break;
-		case CAN_RC_DATA_Frame_1:
-			RC_Data_Buf[8] = rx_data[0];
-			RC_Data_Buf[9] = rx_data[1];
-			RC_Data_Buf[10] = rx_data[2];
-			RC_Data_Buf[11] = rx_data[3];
-			RC_Data_Buf[12] = rx_data[4];
-			RC_Data_Buf[13] = rx_data[5];
-			RC_Data_Buf[14] = rx_data[6];
-			RC_Data_Buf[15] = rx_data[7];
-			Callback_RC_Handle(&remote_control, RC_Data_Buf);
-			break;
-		case YAW_MOTOR_ID:
-			Detect_Hook(GIMBAL_YAW_MOTOR_TOE);
-			if (rx_data[6] != 0 && rx_data[7] != 0)
-				get_RMD_info(&Gimbal.YawMotor, rx_data);
-			break;
-		case 0x250:
-			tempBuff[0] = rx_data[0]; // NFX
-			tempBuff[1] = rx_data[1]; // NFX
-			tempBuff[2] = rx_data[2]; // NFY
-			tempBuff[3] = rx_data[3]; // NFY
-			tempBuff[4] = rx_data[4]; // TVX
-			tempBuff[5] = rx_data[5]; // TVX
-			tempBuff[6] = rx_data[6]; // TVY
-			tempBuff[7] = rx_data[7]; // TVY
+				get_moto_info(&Chassis.ChassisMotor[motor_index], rx_data);
 
-			Chassis.nowFaceX = ((int16_t)((tempBuff[1] << 8) | tempBuff[0])) / 1000.0f;
-			Chassis.nowFaceY = ((int16_t)((tempBuff[3] << 8) | tempBuff[2])) / 1000.0f;
-			Chassis.TargetVelocityXtemp = ((int16_t)((tempBuff[5] << 8) | tempBuff[4])) / 1000.0f;
-			Chassis.TargetVelocityYtemp = ((int16_t)((tempBuff[7] << 8) | tempBuff[6])) / 1000.0f;
-			break;
-		case 0x251:
-			tempBuff[8] = rx_data[0];  // NFX
-			tempBuff[9] = rx_data[1];  // NFX
-			tempBuff[10] = rx_data[2]; // NFY
-			tempBuff[11] = rx_data[3]; // NFY
-			tempBuff[12] = rx_data[4]; // TVX
-			tempBuff[13] = rx_data[5]; // TVX
-			tempBuff[14] = rx_data[6]; // TVY
-			tempBuff[15] = rx_data[7]; // TVY
-			Chassis.decision_info.TgtStatus = tempBuff[8];
-			Chassis.decision_info.do_spin = tempBuff[9];
-			Chassis.decision_info.open_cap = tempBuff[10];
-			break;
-		case CAN_GIMBAL_Info_ID:
-			Gimbal_Buf[0] = rx_data[0];
-			Gimbal_Buf[1] = rx_data[1];
-			Gimbal_Buf[2] = rx_data[2];
-			Gimbal_Data.MiniPC_state = Gimbal_Buf[0];
-			Gimbal_Data.slope = Gimbal_Buf[1];
-			Gimbal_Data.isrollover = Gimbal_Buf[2];
-			break;
+			// 如需监控电机在线状态，调用 Detect_Hook
+			// Detect_Hook(CHASSIS_MOTOR1_TOE + motor_index);
 		}
+		// 如果需要电容，可保留 CAN_CAP_INFO_ID 部分，否则删除
+	}
+	else if (_hcan == &hcan2)
+	{
+		// 遥控器接收（分两帧）
+		static uint8_t RC_Data_Buf[16];
+		if (rx_header.StdId == CAN_RC_DATA_Frame_0)
+		{
+			memcpy(RC_Data_Buf, rx_data, 8);
+		}
+		else if (rx_header.StdId == CAN_RC_DATA_Frame_1)
+		{
+			memcpy(RC_Data_Buf + 8, rx_data, 8);
+			Callback_RC_Handle(&remote_control, RC_Data_Buf);
+		}
+		// 其他所有 ID（云台、导航、视觉等）直接忽略
 	}
 }
+//{
+// 	CAN_RxHeaderTypeDef rx_header;
+// 	uint8_t rx_data[8];
+// 	static uint8_t RC_Data_Buf[16];
+// 	static uint8_t Follow_Data_Buf[8];
+// 	static uint8_t MiniPC_CtrlFrame_Buf[8];
+// 	static uint8_t Gimbal_Buf[8];
+// 	static int16_t CAP_vol, CAP0727_vol;
+//
+// 	HAL_CAN_GetRxMessage(_hcan, CAN_RX_FIFO0, &rx_header, rx_data);
+//
+// 	if (_hcan == &hcan1)
+// 	{
+// 		if (rx_header.StdId >= 0x201 && rx_header.StdId <= 0x204)
+// 		{
+// 			if (Chassis.ChassisMotor[rx_header.StdId - 0x201].msg_cnt++ <= 50)
+// 			{
+// 				get_moto_offset(&Chassis.ChassisMotor[rx_header.StdId - 0x201], rx_data);
+// 			}
+// 			else
+// 			{
+// 				get_moto_info(&Chassis.ChassisMotor[rx_header.StdId - 0x201], rx_data);
+// 			}
+// 			switch (rx_header.StdId)
+// 			{
+// 			case 0x201:
+// 			{
+// 				Detect_Hook(CHASSIS_MOTOR1_TOE);
+// 				break;
+// 			}
+// 			case 0x202:
+// 			{
+// 				Detect_Hook(CHASSIS_MOTOR2_TOE);
+// 				break;
+// 			}
+// 			case 0x203:
+// 			{
+// 				Detect_Hook(CHASSIS_MOTOR3_TOE);
+// 				break;
+// 			}
+// 			case 0x204:
+// 			{
+// 				Detect_Hook(CHASSIS_MOTOR4_TOE);
+// 				break;
+// 			}
+// 			}
+// 		}
+// 		switch (rx_header.StdId)
+// 		{
+// 		case CAN_CAP_INFO_ID:
+// 			CAP_vol = rx_data[0];
+// 			Cap.Voltage = (float)CAP_vol / 5.0f;
+// 			Cap.Power = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
+// 			Cap.PowerIn = (float)((rx_data[3] << 8 | rx_data[4]) / 10.0f);
+// 			Cap.Cap_Normol_Chassis_Flag = rx_data[5];
+// 			Detect_Hook(CAP_TOE);
+// 			break;
+// 		case CAN_CAP0727_INFO_ID:
+// 			CAP0727_vol = rx_data[0];
+// 			Cap0727.Voltage = (float)CAP0727_vol / 5.0f;
+// 			Cap0727.Power = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
+// 			dt_cap0727 = DWT_GetDeltaT(&Bsp_Can_Count);
+// 			Detect_Hook(CAP0727_TOE);
+// 			break;
+// 		}
+// 	}
+// 	if (_hcan == &hcan2)
+// 	{
+// 		switch (rx_header.StdId)
+// 		{
+// 		case CAN_RC_DATA_Frame_0:
+// 			RC_Data_Buf[0] = rx_data[0];
+// 			RC_Data_Buf[1] = rx_data[1];
+// 			RC_Data_Buf[2] = rx_data[2];
+// 			RC_Data_Buf[3] = rx_data[3];
+// 			RC_Data_Buf[4] = rx_data[4];
+// 			RC_Data_Buf[5] = rx_data[5];
+// 			RC_Data_Buf[6] = rx_data[6];
+// 			RC_Data_Buf[7] = rx_data[7];
+// 			break;
+// 		case CAN_RC_DATA_Frame_1:
+// 			RC_Data_Buf[8] = rx_data[0];
+// 			RC_Data_Buf[9] = rx_data[1];
+// 			RC_Data_Buf[10] = rx_data[2];
+// 			RC_Data_Buf[11] = rx_data[3];
+// 			RC_Data_Buf[12] = rx_data[4];
+// 			RC_Data_Buf[13] = rx_data[5];
+// 			RC_Data_Buf[14] = rx_data[6];
+// 			RC_Data_Buf[15] = rx_data[7];
+// 			Callback_RC_Handle(&remote_control, RC_Data_Buf);
+// 			break;
+// 		case YAW_MOTOR_ID:
+// 			Detect_Hook(GIMBAL_YAW_MOTOR_TOE);
+// 			if (rx_data[6] != 0 && rx_data[7] != 0)
+// 				get_RMD_info(&Gimbal.YawMotor, rx_data);
+// 			break;
+// 		case 0x250:
+// 			tempBuff[0] = rx_data[0]; // NFX
+// 			tempBuff[1] = rx_data[1]; // NFX
+// 			tempBuff[2] = rx_data[2]; // NFY
+// 			tempBuff[3] = rx_data[3]; // NFY
+// 			tempBuff[4] = rx_data[4]; // TVX
+// 			tempBuff[5] = rx_data[5]; // TVX
+// 			tempBuff[6] = rx_data[6]; // TVY
+// 			tempBuff[7] = rx_data[7]; // TVY
+//
+// 			Chassis.nowFaceX = ((int16_t)((tempBuff[1] << 8) | tempBuff[0])) / 1000.0f;
+// 			Chassis.nowFaceY = ((int16_t)((tempBuff[3] << 8) | tempBuff[2])) / 1000.0f;
+// 			Chassis.TargetVelocityXtemp = ((int16_t)((tempBuff[5] << 8) | tempBuff[4])) / 1000.0f;
+// 			Chassis.TargetVelocityYtemp = ((int16_t)((tempBuff[7] << 8) | tempBuff[6])) / 1000.0f;
+// 			break;
+// 		case 0x251:
+// 			tempBuff[8] = rx_data[0];  // NFX
+// 			tempBuff[9] = rx_data[1];  // NFX
+// 			tempBuff[10] = rx_data[2]; // NFY
+// 			tempBuff[11] = rx_data[3]; // NFY
+// 			tempBuff[12] = rx_data[4]; // TVX
+// 			tempBuff[13] = rx_data[5]; // TVX
+// 			tempBuff[14] = rx_data[6]; // TVY
+// 			tempBuff[15] = rx_data[7]; // TVY
+// 			Chassis.decision_info.TgtStatus = tempBuff[8];
+// 			Chassis.decision_info.do_spin = tempBuff[9];
+// 			Chassis.decision_info.open_cap = tempBuff[10];
+// 			break;
+// 		case CAN_GIMBAL_Info_ID:
+// 			Gimbal_Buf[0] = rx_data[0];
+// 			Gimbal_Buf[1] = rx_data[1];
+// 			Gimbal_Buf[2] = rx_data[2];
+// 			Gimbal_Data.MiniPC_state = Gimbal_Buf[0];
+// 			Gimbal_Data.slope = Gimbal_Buf[1];
+// 			Gimbal_Data.isrollover = Gimbal_Buf[2];
+// 			break;
+// 		}
+// 	}
+// }
 
 // ͨ��CAN���߷���ң������Ϣ ��������δʹ��
 void Send_RC_Data(CAN_HandleTypeDef *_hcan, uint8_t *rc_data)

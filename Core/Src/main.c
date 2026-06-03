@@ -25,7 +25,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "main.h"
+#include "remote_control.h"
+#include "detect_task.h"
+#include "chassis_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,7 +60,8 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+#define DETECT_PERIOD_MS   10
+#define CHASSIS_PERIOD_MS   1
 /* USER CODE END 0 */
 
 /**
@@ -96,7 +100,13 @@ int main(void)
   MX_USART3_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+  CAN_Device_Init();
+  Remote_Control_Init(&huart3);
+  Detect_Task_Init();
+  Chassis_Init();
 
+  uint32_t last_detect_time = HAL_GetTick();
+  uint32_t last_chassis_time = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,7 +115,19 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+
     /* USER CODE BEGIN 3 */
+    uint32_t now = HAL_GetTick();
+    if (now - last_detect_time >= DETECT_PERIOD_MS) {
+      last_detect_time = now;
+      Detect_Task();
+
+    }
+    if (now - last_chassis_time >= CHASSIS_PERIOD_MS) {
+      last_chassis_time = now;
+      Chassis_Control();
+    }
+    HAL_IWDG_Refresh(&hiwdg);
   }
   /* USER CODE END 3 */
 }

@@ -19,9 +19,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
 #Uncomment for hardware floating point
-#add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
-#add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
-#add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
 #Uncomment for software floating point
 #add_compile_options(-mfloat-abi=soft)
@@ -49,21 +49,31 @@ else ()
     add_compile_options(-Og -g)
 endif ()
 
-include_directories(Core/Inc Drivers/STM32F4xx_HAL_Driver/Inc Drivers/STM32F4xx_HAL_Driver/Inc/Legacy Drivers/CMSIS/Device/ST/STM32F4xx/Include Drivers/CMSIS/Include)
-include_directories(Core/bsp Core/Components Core/Application Core/Components/Algorithm Core/Components/Controller Core/Components/Devices Core/Components/Algorithm/Include/)
+include_directories(
+        Core/Inc
+        Drivers/STM32F4xx_HAL_Driver/Inc
+        Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
+        Drivers/CMSIS/Device/ST/STM32F4xx/Include
+        Drivers/CMSIS/Include
+        Core/Application
+        Core/bsp
+        Core/Components/Algorithm/include
+        Core/Components/Algorithm
+        Core/Components/Controller
+        Core/Components/Devices
+        )
+
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx)
-add_compile_definitions(ARM_MATH_CM4)
-file(GLOB_RECURSE SOURCES "Core/*.*" "Drivers/*.*")
-file(GLOB_RECURSE USER_SOURCES "Core/Application/*.c" "Core/bsp/*.c" "Core/Components/*.c" "Core/Components/Algorithm/*.c" "Core/Components/Controller/*.c" "Core/Components/Devices/*.c" "Core/Components/Algorithm/Include/*.c" )
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld
-        Core/Application/chassis_task.c
-        Core/Application/chassis_task.h
-        Core/Application/detect_task.c
-        Core/Application/detect_task.h
-        Core/Application/ins_task.c
-        Core/Application/ins_task.h
-        Core/Application/remote_control.c
-        Core/Application/remote_control.h)
+
+file(GLOB_RECURSE SOURCES
+        "Core/Src*.*"
+        "Drivers/*.*"
+        "Core/Application/*."
+        "Core/bsp/*."
+        "Core/Components/*."
+)
+
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld)
 
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
