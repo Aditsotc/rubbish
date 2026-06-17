@@ -1,0 +1,3 @@
+D:/stm32/chassis_chassis/Bsp/bsp_usart_idle.c:15:6:USART_IDLE_Init	24	static
+D:/stm32/chassis_chassis/Bsp/bsp_usart_idle.c:46:6:USART_IDLE_IRQHandler	32	static
+D:/stm32/chassis_chassis/Bsp/bsp_usart_idle.c:73:13:USER_UART_RxIdleCallback	16	static

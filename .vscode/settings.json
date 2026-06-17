@@ -1,0 +1,8 @@
+{
+  "cmake.sourceDirectory": "D:/stm32/chassis_chassis/cmake/stm32cubemx",
+  "cmake.configureSettings": {
+    "CMAKE_TOOLCHAIN_FILE": "D:/stm32/chassis_chassis/cmake/gcc-arm-none-eabi.cmake",
+    "CMAKE_MAKE_PROGRAM": "D:/Cliontoolchains/CLion 2026.1.2/bin/ninja/win/x64/ninja.exe"
+  },
+  "cmake.generator": "Ninja"
+}

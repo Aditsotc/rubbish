@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/stm32/chassis_chassis/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

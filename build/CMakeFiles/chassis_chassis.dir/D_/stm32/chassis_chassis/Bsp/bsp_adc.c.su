@@ -1,0 +1,4 @@
+D:/stm32/chassis_chassis/Bsp/bsp_adc.c:8:17:adcx_get_chx_value	16	static
+D:/stm32/chassis_chassis/Bsp/bsp_adc.c:25:6:init_vrefint_reciprocal	16	static
+D:/stm32/chassis_chassis/Bsp/bsp_adc.c:36:7:get_temprate	16	static
+D:/stm32/chassis_chassis/Bsp/bsp_adc.c:48:7:get_battery_voltage	16	static

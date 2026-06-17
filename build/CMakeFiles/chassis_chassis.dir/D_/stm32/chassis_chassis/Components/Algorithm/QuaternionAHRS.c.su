@@ -1,0 +1,8 @@
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:34:6:Quaternion_AHRS_Update	48	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:154:6:Quaternion_AHRS_UpdateIMU	40	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:235:6:Get_EulerAngle	16	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:264:6:InsertQuaternionFrame	32	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:276:10:FindTimeMatchFrame	24	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:297:6:BodyFrameToEarthFrame	24	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:318:6:EarthFrameToBodyFrame	24	static
+D:/stm32/chassis_chassis/Components/Algorithm/QuaternionAHRS.c:333:14:invSqrt	32	static
