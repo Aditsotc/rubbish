@@ -14,6 +14,14 @@
 #include "VTM_info.h"
 #include "bsp_dwt.h"
 #include "user_lib.h"
+#include "chassis_task.h"
+#include "remote_control.h"
+#include "detect_task.h"
+#include "cap.h"
+#include "gimbal_task.h"
+#include "decision_task.h"
+#include "judgement_info.h"
+#include "client_interact.h"
 
 uint8_t tempBuff[24] = {0};
 uint8_t enable_navigation;

@@ -1,167 +1,136 @@
-//
-// Created by 25664 on 2026/6/15.
-//
-
+/**
+ ******************************************************************************
+ * @file    chassis_task.c
+ * @brief   Omnidirectional chassis control — RC → Omni-wheel kinematics →
+ *          PID speed loop → CAN motor current
+ ******************************************************************************
+ */
 #include "chassis_task.h"
-#include "kalman_filter.h"
-#include "controller.h"
+#include "motor.h"
+#include "remote_control.h"
+#include "detect_task.h"
+#include "bsp_dwt.h"
+#include "bsp_CAN.h"
+#include "user_lib.h"
 
+/* External CAN handle from can.c */
+extern CAN_HandleTypeDef hcan1;
+
+/* Global instances */
 Chassis_t Chassis = {0};
-SentryInfo decision_info = {0};
-uint32_t Chassis_DWT_Count = 0;
-uint32_t time_temp = 0;
-uint32_t nanCount = 0;
-uint32_t debugvalue = 0;
-float preFollowTheta;
-float SpinningValidTheta;
-float NAVTransmitTheta;
-float TargetTransmitTheta;
-float YAWTransmitTheta;
-float SpinningValidVx;
-float SpinningValidVy;
-uint32_t SpinCount = 0;
-uint8_t hurtflag = 0;
-uint8_t lasthurtflag = 0;
+Motor_t ChassisMotor[4] = {0};
+float limited_current[4] = {0};
 
-float lastVr;
+/* Local state */
+static uint32_t Chassis_DWT_Count = 0;
+static float dt = 0.001f;
 
-float TempAerialX;
-float TempAerialY;
-float LastTempAerialX;
-float LastTempAerialY;
-uint8_t TargetChangeFlag;
+/* ========================= Chassis Init ================================== */
 
-uint8_t AMP = 50;
-uint16_t VR = 600;
-float MAX_RPM = 8000;
-
-float Vx_k = 2000; // 最大阶跃速度比
-float Vy_k = 2000;
-float Vr_k = 300;
-float c[3] = {1, 1, 1};
-
-static float dt = 0,
-             t = 0;
-
-float user_count_time = 0;
-uint8_t last_game_status = 0;
-
-uint16_t ReachCount = 0;
-uint8_t ReachFinished = 0;
-uint32_t ReachFlag = 0;
-
-uint8_t aimassist_online = 0;
-uint32_t aimssistLoseCount = 0;
-uint8_t Sendcount = 0;
-
-static void Chassis_Get_CtrlValue(void);
-static void Chassis_Set_Control(void);
-static float Max_4(float num1, float num2, float num3, float num4);
-static void Velocity_MAXLimit(void);
-
-float float_constrain(float Value, float minValue, float maxValue) {
-    if (Value < minValue)
-        return minValue;
-    else if (Value > maxValue)
-        return maxValue;
-    else
-        return Value;
-}
-
-
-static void Send_Chassis_Current(void) /*发送底盘电机控制电流*/
+void Chassis_Init(void)
 {
-    static uint32_t count = 0;
-    if (count % 10 == 0)
-    {
-        Send_Power_Data(&hcan1, robot_state.chassis_power_limit, power_heat_data.buffer_energy);
-        count = 0;
-    }
-
-    if (is_TOE_Error(RC_TOE)) // RC——遥控器接收器  VTM——图传
-    {
-        if (Send_Motor_Current_1_4(&hcan1, 0, 0, 0, 0) == HAL_OK)
-            ;
-    }
-    else
-    {
-
-        if (Send_Motor_Current_1_4(&hcan1,
-                                   (int16_t)limited_current[0],
-                                   (int16_t)limited_current[1],
-                                   (int16_t)limited_current[2],
-                                   (int16_t)limited_current[3]) == HAL_OK)
-            ;
-
-        // if (Send_Motor_Current_1_4(&hcan1, 0, 0, 0, 0) == HAL_OK)
-        //     ;
-    }
-
-    count++;
-}
-
-
-void Chassis_Init(void) {
-    Chassis.WheelRadius = 0.0765f;
-
-    Chassis.WheelReductionRatio = (3591.0f / 187.0f);
-
+    Chassis.WheelRadius = wheel_radius;
+    Chassis.WheelReductionRatio = CHASSIS_WHEEL_REDUCTION_RATIO;
     Chassis.VelocityRatio = VELOCITY_RATIO;
+    Chassis.Mode = 0;
 
-    Chassis.rcStickRotateRatio = 0;
-
-    Chassis.GravityCenter_Adjustment = GRAVUTYCENTER_ADJUSTMENT;
-
-    Chassis.YawCorrectionScale = 0;
-
+    /* Init motor speed-loop PID for all 4 wheels
+       PID_Init(pid, max_out, integral_limit, deadband,
+                kp, ki, kd, A, B, output_lpf_rc, derivative_lpf_rc,
+                ols_order, improve) */
     for (uint8_t i = 0; i < 4; i++)
     {
-
-        PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 2000, 0, 50, 0.1, 0, 65, 15, 0.005, 0, 1,
+        PID_Init(&ChassisMotor[i].PID_Velocity,
+                 16384.0f,    /* Max output = C620 current range */
+                 2000.0f,     /* Integral limit */
+                 0.0f,        /* Dead band */
+                 50.0f,       /* Kp */
+                 0.1f,        /* Ki */
+                 0.0f,        /* Kd */
+                 65.0f,       /* A (changing integration rate) */
+                 15.0f,       /* B (changing integration rate) */
+                 0.005f,      /* Output LPF RC */
+                 0.0f,        /* Derivative LPF RC */
+                 1,           /* OLS order */
                  Integral_Limit | OutputFilter | ChangingIntegrationRate);
-        Chassis.ChassisMotor[i].Max_Out = 16384.0f;
+
+        ChassisMotor[i].Max_Out = 16384.0f;
+        ChassisMotor[i].ReductionRatio = CHASSIS_WHEEL_REDUCTION_RATIO;
+        ChassisMotor[i].Direction = 0;
     }
-    decision_info.isInvincible = 1;
-    decision_info.isDead = 0;
-    decision_info.isAlive = 1;
-
-    Power_Control.Is_Cap_On = FALSE;
-    Power_Control.Is_Cap_Used = TRUE;
-    chassisPowerInit();
 }
-void Chassis_Control(void) {
+
+/* ======================= Chassis Control Loop ============================ */
+
+void Chassis_Control(void)
+{
+    /* --- Delta time -------------------------------------------- */
     dt = DWT_GetDeltaT(&Chassis_DWT_Count);
-    t += dt ;
-    Chassis_Get_CtrlValue();
-    Send_Chassis_Current();
-    Chassis.V1 = ((Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V2 = ((Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V3 = ((-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V4 = ((-Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
+    if (dt < 0.0001f || dt > 0.1f) dt = 0.001f;  /* clamp abnormal dt */
 
+    /* Update PID sample period */
+    for (uint8_t i = 0; i < 4; i++)
+        ChassisMotor[i].PID_Velocity.dt = dt;
 
-}
-void Chassis_Get_CtrlValue(void) {
-    static float Temp_Vx, Temp_Vy; // 速度的期望值
-    static float tempVal;
-    static float RC = 0.000001f;
-    Temp_Vx += (remote_control.ch3 * 2.64f / 660.0f);
-    Temp_Vy += (remote_control.ch4 * 2.64f / 660.0f);
-    tempVal = (Temp_Vx - Chassis.Vx)/(0.001+dt);
-    tempVal = (Temp_Vy - Chassis.Vy)/(0.001+dt);
-    Chassis.Vx += (Temp_Vx - Chassis.Vx) / (RC + dt) * dt;   // RC 时间常数缓启动
-    Chassis.Vy += (Temp_Vy - Chassis.Vy) / (0.01f + dt) * dt;
-    Chassis.Vx = float_constrain(Chassis.Vx, -2.64f, 2.64f);
-    Chassis.Vy = float_constrain(Chassis.Vy, -2.64f, 2.64f);
-    // Mecanum 逆运动学：车体速度 → 轮子转速
-    Chassis.V1 = ((Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V2 = ((Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V3 = ((-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
-    Chassis.V4 = ((-Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + (WHEEL_OPPOSITE * SQRT2) * Chassis.Vr) / (wheel_radius * 0.001 * SQRT2);
+    /* --- Read RC and compute target body velocity --------------- */
+    /* ch3: forward(+)/backward(-), ch4: left(+)/right(-) */
+    if (!is_TOE_Error(RC_TOE))
+    {
+        Chassis.Vx = (float)remote_control.ch3 * RC_TO_VELOCITY;  /* m/s */
+        Chassis.Vy = (float)remote_control.ch4 * RC_TO_VELOCITY;  /* m/s */
+        Chassis.Vr = (float)remote_control.ch2 * RC_TO_ROTATION;  /* rad/s */
+    }
+    else
+    {
+        /* RC lost → stop */
+        Chassis.Vx = 0.0f;
+        Chassis.Vy = 0.0f;
+        Chassis.Vr = 0.0f;
+    }
 
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[0], Chassis.ChassisMotor[0].Velocity_RPM / WheelReductionRatio, Chassis.V1);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[1], Chassis.ChassisMotor[1].Velocity_RPM / WheelReductionRatio, Chassis.V2);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[2], Chassis.ChassisMotor[2].Velocity_RPM / WheelReductionRatio, Chassis.V3);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[3], Chassis.ChassisMotor[3].Velocity_RPM / WheelReductionRatio, Chassis.V4);
+    /* Coordinate transform: body → chassis frame
+       (without IMU, body frame = chassis frame, no rotation compensation) */
+    Chassis.VxTransfer = Chassis.Vx;
+    Chassis.VyTransfer = Chassis.Vy;
 
+    /* --- Omni-wheel inverse kinematics: body velocity → wheel speed ----- */
+    /* V_wheel(rad/s) = f(Vx, Vy, Vr)
+       FR:  V1 = [ (Vx - Vy)*ratio + (W*d*sqrt2)*Vr ] / (r * 0.001 * sqrt2)
+       FL:  V2 = [ (Vx + Vy)*ratio + (W*d*sqrt2)*Vr ] / (r * 0.001 * sqrt2)
+       HL:  V3 = [ (-Vx + Vy)*ratio + (W*d*sqrt2)*Vr ] / (r * 0.001 * sqrt2)
+       HR:  V4 = [ (-Vx - Vy)*ratio + (W*d*sqrt2)*Vr ] / (r * 0.001 * sqrt2)
+    */
+    float denom = wheel_radius * 0.001f * SQRT2;
+    float wheel_base_term = WHEEL_OPPOSITE * SQRT2 * Chassis.Vr;
+
+    Chassis.V1 = (( Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + wheel_base_term) / denom;
+    Chassis.V2 = (( Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + wheel_base_term) / denom;
+    Chassis.V3 = ((-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio + wheel_base_term) / denom;
+    Chassis.V4 = ((-Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio + wheel_base_term) / denom;
+
+    /* --- PID speed control: target speed → motor current ----------------- */
+    /* Target: V1~V4 in rad/s,  Feedback: OutputVel_RadPS in rad/s (wheel shaft) */
+    limited_current[0] = Motor_Speed_Calculate(&ChassisMotor[FR],
+        ChassisMotor[FR].OutputVel_RadPS, Chassis.V1);
+    limited_current[1] = Motor_Speed_Calculate(&ChassisMotor[FL],
+        ChassisMotor[FL].OutputVel_RadPS, Chassis.V2);
+    limited_current[2] = Motor_Speed_Calculate(&ChassisMotor[HL],
+        ChassisMotor[HL].OutputVel_RadPS, Chassis.V3);
+    limited_current[3] = Motor_Speed_Calculate(&ChassisMotor[HR],
+        ChassisMotor[HR].OutputVel_RadPS, Chassis.V4);
+
+    /* --- Send motor currents via CAN1 (C620 ESC protocol) ---------------- */
+    if (is_TOE_Error(RC_TOE))
+    {
+        /* RC offline → zero current (safety) */
+        Send_Motor_Current_1_4(&hcan1, 0, 0, 0, 0);
+    }
+    else
+    {
+        Send_Motor_Current_1_4(&hcan1,
+            (int16_t)limited_current[0],
+            (int16_t)limited_current[1],
+            (int16_t)limited_current[2],
+            (int16_t)limited_current[3]);
+    }
 }

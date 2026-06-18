@@ -13,8 +13,10 @@
 #ifndef _BSP_CAN_H
 #define _BSP_CAN_H
 
-#include "includes.h"
-#include "power_manager.h"
+#include "main.h"
+#include "can.h"
+#include "stdint.h"
+#include "stdbool.h"
 
 #define CAN_RC_DATA_Frame_0 0x131
 #define CAN_RC_DATA_Frame_1 0x132

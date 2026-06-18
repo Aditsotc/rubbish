@@ -12,6 +12,8 @@
  */
 #include "detect_task.h"
 #include "cmsis_os.h"
+#include "bsp_adc.h"
+#include "remote_control.h"
 
 uint32_t resetCount = 0;
 uint32_t DetectSysTime;

@@ -55,10 +55,8 @@ rule C_COMPILER__chassis_chassis_unscanned_Debug
 # Rule for linking C executable.
 
 rule C_EXECUTABLE_LINKER__chassis_chassis_Debug
-  command = C:\Windows\system32\cmd.exe /C "$PRE_LINK && D:\Cliontoolchains\gcc-arm-none-eabi-10.3-2021.10\bin\arm-none-eabi-gcc.exe $FLAGS $LINK_FLAGS @$RSP_FILE -o $TARGET_FILE && $POST_BUILD"
+  command = C:\Windows\system32\cmd.exe /C "$PRE_LINK && D:\Cliontoolchains\gcc-arm-none-eabi-10.3-2021.10\bin\arm-none-eabi-gcc.exe $FLAGS $LINK_FLAGS $in -o $TARGET_FILE $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking C executable $TARGET_FILE
-  rspfile = $RSP_FILE
-  rspfile_content = $in $LINK_PATH $LINK_LIBRARIES
   restat = $RESTAT
 
 

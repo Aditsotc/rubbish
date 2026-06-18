@@ -14,7 +14,7 @@
 #define __DETECT_TASK_H
 
 #include <stdint.h>
-#include "includes.h"
+#include "cmsis_os.h"
 
 #define DETECT_TASK_PERIOD 5
 

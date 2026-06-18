@@ -1,0 +1,5 @@
+D:/stm32/chassis_chassis/Application/detect_task.c:26:6:Detect_Task_Init	8	static
+D:/stm32/chassis_chassis/Application/detect_task.c:36:6:Detect_Task	24	static
+D:/stm32/chassis_chassis/Application/detect_task.c:121:9:is_TOE_Error	16	static
+D:/stm32/chassis_chassis/Application/detect_task.c:126:6:Detect_Hook	24	static
+D:/stm32/chassis_chassis/Application/detect_task.c:161:13:Detect_Init	104	static

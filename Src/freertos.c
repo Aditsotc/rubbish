@@ -25,7 +25,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "chassis_task.h"
+#include "detect_task.h"
+#include "remote_control.h"
+#include "iwdg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -127,13 +130,13 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* definition and creation of GimbalTask */
-  osThreadDef(GimbalTask, StartGimbalTask, osPriorityHigh, 0, 512);
-  GimbalTaskHandle = osThreadCreate(osThread(GimbalTask), NULL);
+  /* GimbalTask — disabled (chassis-only) */
+  // osThreadDef(GimbalTask, StartGimbalTask, osPriorityHigh, 0, 512);
+  // GimbalTaskHandle = osThreadCreate(osThread(GimbalTask), NULL);
 
-  /* definition and creation of INSTask */
-  osThreadDef(INSTask, StartINSTask, osPriorityAboveNormal, 0, 512);
-  INSTaskHandle = osThreadCreate(osThread(INSTask), NULL);
+  /* INSTask — disabled (no IMU in chassis-only config) */
+  // osThreadDef(INSTask, StartINSTask, osPriorityAboveNormal, 0, 512);
+  // INSTaskHandle = osThreadCreate(osThread(INSTask), NULL);
 
   /* definition and creation of DetectTask */
   osThreadDef(DetectTask, StartDetectTask, osPriorityBelowNormal, 0, 512);
@@ -164,16 +167,14 @@ void MX_FREERTOS_Init(void) {
   * @retval None
   */
 /* USER CODE END Header_StartGimbalTask */
-void StartGimbalTask(void const * argument)
-{
-  /* USER CODE BEGIN StartGimbalTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartGimbalTask */
-}
+/* GimbalTask — disabled (chassis-only configuration) */
+// void StartGimbalTask(void const * argument)
+// {
+//   for(;;)
+//   {
+//     osDelay(1);
+//   }
+// }
 
 /* USER CODE BEGIN Header_StartINSTask */
 /**
@@ -181,19 +182,19 @@ void StartGimbalTask(void const * argument)
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartINSTask */
-void StartINSTask(void const * argument)
-{
-  /* USER CODE BEGIN StartINSTask */
-  INS_Init();
-  /* Infinite loop */
-  for(;;)
-  {
-    INS_Task();
-    osDelay(1);
-  }
-  /* USER CODE END StartINSTask */
-}
+// /* USER CODE END Header_StartINSTask */
+// void StartINSTask(void const * argument)
+// {
+//   /* USER CODE BEGIN StartINSTask */
+//   INS_Init();
+//   /* Infinite loop */
+//   for(;;)
+//   {
+//     INS_Task();
+//     osDelay(1);
+//   }
+//   /* USER CODE END StartINSTask */
+// }
 
 /* USER CODE BEGIN Header_StartDetectTask */
 /**
@@ -205,10 +206,12 @@ void StartINSTask(void const * argument)
 void StartDetectTask(void const * argument)
 {
   /* USER CODE BEGIN StartDetectTask */
+  Detect_Task_Init();
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    Detect_Task();
+    osDelay(DETECT_TASK_PERIOD);
   }
   /* USER CODE END StartDetectTask */
 }
@@ -223,11 +226,12 @@ void StartDetectTask(void const * argument)
 void StartPowerMeasureTask(void const * argument)
 {
   /* USER CODE BEGIN StartPowerMeasureTask */
-  Detect_Task_Init();
   /* Infinite loop */
   for (;;)
   {
     HAL_IWDG_Refresh(&hiwdg);
+
+    /* Key combo F+E held > 1.5s triggers system reset */
     if ((remote_control.key_code & Key_F) && (remote_control.key_code & Key_E))
     {
       resetCount++;
@@ -238,9 +242,10 @@ void StartPowerMeasureTask(void const * argument)
       }
     }
     else
+    {
       resetCount = 0;
+    }
 
-    Detect_Task();
     osDelay(DETECT_TASK_PERIOD);
   }
   /* USER CODE END StartPowerMeasureTask */
@@ -259,8 +264,8 @@ void StartUITask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    UI_Task();
-    osDelay(UI_TASK_PERIOD);
+    /* LED indication based on chassis/RC status */
+    osDelay(50);
   }
   /* USER CODE END StartUITask */
 }
@@ -275,39 +280,13 @@ void StartUITask(void const * argument)
 void StartChassisTask(void const * argument)
 {
   /* USER CODE BEGIN StartChassisTask */
+  /* One-time initialization */
+  Chassis_Init();
+
   /* Infinite loop */
   for(;;)
   {
     Chassis_Control();
-
-    // shoot_data
-    if (JudgeSendCount > 5)
-    {
-
-      UWBPosX = (uint16_t)(robot_pos.x * 100.0f);
-      UWBPosY = (uint16_t)(robot_pos.y * 100.0f);
-      UWBPosAngle = (uint16_t)(robot_pos.angle * 100.0f);
-
-      Send_Robot_Info(&hcan2, robot_state.robot_id,
-                      robot_state.shooter_barrel_heat_limit,
-                      power_heat_data.shooter_17mm_barrel_heat,
-                      (uint16_t)(shoot_data.initial_speed * 10),
-                      robot_state.shooter_barrel_cooling_value,
-                      UWBPosX,
-                  
-                      UWBPosY,
-                      (uint8_t)game_status.game_progress, (uint8_t)ReachFlag);
-
-      if (count % 10 == 0)
-      {
-        Send_Decision_Info(&hcan2);
-        count = 0;
-      }
-      count++;
-
-      JudgeSendCount = 0;
-    }
-    JudgeSendCount++;
     osDelay(CHASSIS_TASK_PERIOD);
   }
   /* USER CODE END StartChassisTask */

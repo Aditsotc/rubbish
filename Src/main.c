@@ -31,7 +31,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "chassis_task.h"
+#include "remote_control.h"
+#include "detect_task.h"
+#include "bsp_dwt.h"
+#include "bsp_CAN.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,6 +121,12 @@ int main(void)
   MX_USART6_UART_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+
+  /* ---- Application init (before RTOS starts) ---- */
+
+  DWT_Init(168);                    /* DWT cycle counter, CPU=168MHz */
+  CAN_Device_Init();                /* CAN1+2 filter & start */
+  Remote_Control_Init(&huart3);     /* USART3 SBUS DMA+IDLE receive */
 
   /* USER CODE END 2 */
 

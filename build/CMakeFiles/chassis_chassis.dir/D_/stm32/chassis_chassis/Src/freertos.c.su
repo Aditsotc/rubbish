@@ -1,0 +1,7 @@
+D:/stm32/chassis_chassis/Src/freertos.c:84:6:vApplicationGetIdleTaskMemory	24	static
+D:/stm32/chassis_chassis/Src/freertos.c:97:6:vApplicationGetTimerTaskMemory	24	static
+D:/stm32/chassis_chassis/Src/freertos.c:111:6:MX_FREERTOS_Init	128	static
+D:/stm32/chassis_chassis/Src/freertos.c:206:6:StartDetectTask	16	static
+D:/stm32/chassis_chassis/Src/freertos.c:226:6:StartPowerMeasureTask	24	static
+D:/stm32/chassis_chassis/Src/freertos.c:261:6:StartUITask	16	static
+D:/stm32/chassis_chassis/Src/freertos.c:280:6:StartChassisTask	16	static

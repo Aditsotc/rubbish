@@ -22,6 +22,8 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "bsp_usart_idle.h"
+#include "remote_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -264,7 +266,7 @@ void USART3_IRQHandler(void)
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
-
+  USART_IDLE_IRQHandler(&huart3);
   /* USER CODE END USART3_IRQn 1 */
 }
 
@@ -353,5 +355,23 @@ void USART6_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+ * @brief  USART IDLE callback — bridges USART_IDLE_IRQHandler to RC parser.
+ *         DMA circular mode is still running, NDTR gives received byte count.
+ */
+void USER_UART_RxIdleCallback(UART_HandleTypeDef *huart)
+{
+    if (huart != &huart3) return;
+
+    /* Calculate received bytes from DMA NDTR (circular mode) */
+    uint16_t rx_len = SBUS_RX_BUF_NUM - __HAL_DMA_GET_COUNTER(huart->hdmarx);
+
+    /* Valid SBUS frame = 18 bytes from DR16/DT7 */
+    if (rx_len >= RC_FRAME_LENGTH)
+    {
+        Callback_RC_Handle(&remote_control, sbus_rx_buf);
+    }
+}
 
 /* USER CODE END 1 */

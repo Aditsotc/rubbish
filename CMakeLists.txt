@@ -19,6 +19,13 @@ set(MX_Include_Dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/CMSIS/Device/ST/STM32F4xx/Include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/CMSIS/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Application
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/Controller
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/Algorithm
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/Algorithm/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/Devices
 )
 
 # STM32CubeMX generated application sources
@@ -40,6 +47,21 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/sysmem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/syscalls.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f407xx.s
+    # Application layer
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Application/chassis_task.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Application/motor.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Application/remote_control.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Application/detect_task.c
+    # Bsp drivers
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_CAN.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_dwt.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_usart_idle.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_adc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_i2c.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Bsp/bsp_PWM.c
+    # Components
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/user_lib.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Components/Controller/controller.c
 )
 
 # STM32 HAL/LL Drivers

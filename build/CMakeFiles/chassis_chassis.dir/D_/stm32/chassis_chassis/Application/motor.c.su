@@ -1,0 +1,8 @@
+D:/stm32/chassis_chassis/Application/motor.c:6:7:Motor_Torque_Calculate	24	static
+D:/stm32/chassis_chassis/Application/motor.c:26:7:Motor_Speed_Calculate	24	static
+D:/stm32/chassis_chassis/Application/motor.c:46:7:Motor_Angle_Calculate	24	static
+D:/stm32/chassis_chassis/Application/motor.c:69:6:get_moto_info	40	static
+D:/stm32/chassis_chassis/Application/motor.c:118:6:get_moto_offset	16	static
+D:/stm32/chassis_chassis/Application/motor.c:132:6:get_RMD_info	16	static
+D:/stm32/chassis_chassis/Application/motor.c:176:19:Send_Motor_Current_1_4	32	static
+D:/stm32/chassis_chassis/Application/motor.c:232:19:Send_Motor_Current_5_8	32	static

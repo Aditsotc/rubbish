@@ -1,0 +1,5 @@
+D:/stm32/chassis_chassis/Application/remote_control.c:29:6:Remote_Control_Init	16	static
+D:/stm32/chassis_chassis/Application/remote_control.c:44:6:Callback_RC_Handle	24	static
+D:/stm32/chassis_chassis/Application/remote_control.c:101:6:Solve_RC_Lost	8	static
+D:/stm32/chassis_chassis/Application/remote_control.c:106:6:Solve_RC_Data_Error	8	static
+D:/stm32/chassis_chassis/Application/remote_control.c:111:9:RC_Data_is_Error	4	static
